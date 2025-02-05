@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "@/components/Button";
 import AddModal from "@/components/AddModal";
 import Image from "next/image";
 import CountUp from "react-countup";
-import { Add } from "iconsax-react";
 
 interface MainItemType {
   name: string;

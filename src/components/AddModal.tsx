@@ -1,6 +1,5 @@
 "use client";
-import Link from "next/link";
-import React, { useState } from "react";
+import React from "react";
 import Button from "./Button";
 import { Add } from "iconsax-react";
 import Image from "next/image";
@@ -24,8 +23,6 @@ export default function AddModal({
   setImageUrl,
   onClose,
 }: AddModalProps) {
-  const [loading, setLoad] = useState(false);
-
   const inputClass =
     "w-full p-4 border border-border rounded-lg focus:border-primary text-text-primary font-regular text-18 placeholder-shown:font-regular resize-none overflow-hidden outline-0 mb-6";
 
@@ -95,9 +92,7 @@ export default function AddModal({
             )}
 
             <div className="flex place-content-center mt-4">
-              <Button onClick={onClose} loading={loading}>
-                Хадгалах
-              </Button>
+              <Button onClick={onClose}>Хадгалах</Button>
             </div>
           </div>
         </>
