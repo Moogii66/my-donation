@@ -111,6 +111,7 @@ export default function Home() {
               );
             }
           })}
+          {/*  */}
         </div>
         <div className="border border-cyan-200 col-span-2 flex flex-col items-center place-content-center font-bold text-48 p-4">
           {maxAmountItem && (
