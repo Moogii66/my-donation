@@ -1,101 +1,151 @@
+"use client";
+
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import Button from "@/components/Button";
+import AddModal from "@/components/AddModal";
 import Image from "next/image";
+import CountUp from "react-countup";
+import { Add } from "iconsax-react";
+
+interface MainItemType {
+  name: string;
+  amount: number;
+  imageUrl: string;
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [data, setData] = useState<MainItemType[]>([]);
+  const [name, setName] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [visible, setVisible] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [oldTotal, setOldTotal] = useState(0);
+  const totalAmount = data.reduce((sum, item) => sum + item.amount, 0);
+  const maxAmountItem =
+    data.length > 0
+      ? data.reduce((prev, current) =>
+          prev.amount > current.amount ? prev : current
+        )
+      : null;
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const getData = () => {
+    const _data = localStorage.getItem("data")
+      ? JSON.parse(localStorage.getItem("data")!)
+      : [];
+    if (_data.length !== 0) {
+      setOldTotal(totalAmount);
+      setData(_data);
+
+      console.log("_data :>> ", _data);
+    }
+  };
+
+  useEffect(() => {
+    getData();
+  }, []);
+
+  const handleClear = () => {
+    localStorage.removeItem("data");
+    setTimeout(() => {
+      getData();
+    }, 200);
+  };
+
+  const handleButton = () => {
+    setVisible(false);
+    if (name !== "" && amount !== "") {
+      const item = {
+        name: name,
+        amount: parseFloat(amount),
+        imageUrl: imageUrl,
+      };
+      const _temp: MainItemType[] = localStorage.getItem("data")
+        ? JSON.parse(localStorage.getItem("data")!)
+        : [];
+      setOldTotal(totalAmount);
+      _temp.push(item);
+      localStorage.setItem("data", JSON.stringify(_temp));
+      setTimeout(() => {
+        getData();
+      }, 200);
+    }
+
+    setName("");
+    setAmount("");
+    setImageUrl("");
+  };
+
+  function Number({ n }: { n: number }) {
+    return (
+      <CountUp
+        start={oldTotal}
+        end={n}
+        duration={1.5}
+        separator=","
+        // prefix="$"
+        suffix=" ₮"
+      />
+    );
+  }
+
+  const formatAmount = (amount: number) => {
+    return amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  };
+
+  return (
+    <div>
+      <div className="border border-cyan-300 w-screen h-screen grid grid-cols-4">
+        <div className="border border-red-700 col-span-1 flex flex-col items-center gap-4 p-4">
+          {data.map((item, index) => {
+            if (item.imageUrl !== "") {
+              return (
+                <Image
+                  key={index}
+                  src={item.imageUrl}
+                  alt={item.name}
+                  width={100}
+                  height={100}
+                  className="rounded-lg"
+                />
+              );
+            }
+          })}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+        <div className="border border-cyan-200 col-span-2 flex flex-col items-center place-content-center font-bold text-48 p-4">
+          {maxAmountItem && (
+            <p className="text-lg font-semibold">
+              Top Item: {maxAmountItem.name} -{" "}
+              {formatAmount(maxAmountItem.amount)} ₮
+            </p>
+          )}
+          <Number n={totalAmount} />
+        </div>
+        <div className="border border-red-700 col-span-1 flex flex-col items-center p-4 gap-4">
+          {data.map((item, index) => (
+            <div
+              key={index}
+              className="flex justify-between w-full p-2 border-b"
+            >
+              <span>{item.name}</span>
+              <span>{formatAmount(item.amount) + " ₮"}</span>
+            </div>
+          ))}
+          <Button onClick={() => setVisible(true)}>add</Button>
+        </div>
+        {visible && (
+          <AddModal
+            name={name}
+            setName={setName}
+            amount={amount}
+            setAmount={setAmount}
+            onClose={() => handleButton()}
+            imageUrl={imageUrl}
+            setImageUrl={setImageUrl}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        )}
+      </div>
+      <Button onClick={() => handleClear()}>clear</Button>
     </div>
   );
 }
