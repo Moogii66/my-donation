@@ -2394,11 +2394,6 @@ react-countup@^6.5.3:
   dependencies:
     countup.js "^2.8.0"
 
-react-css-spinners@^4.0.2:
-  version "4.0.2"
-  resolved "https://registry.yarnpkg.com/react-css-spinners/-/react-css-spinners-4.0.2.tgz#cfea10c9515354581e87e4196c80df3267212384"
-  integrity sha512-grQ+LsvfZoYdqAOqO2iyIFErIxLeQ5S2EJSG35titZ+7A/Y2RBINKyKp+54PMSvJZ2wFfZFweh7PxJ6vYGvnqQ==
-
 react-dom@^19.0.0:
   version "19.0.0"
   resolved "https://registry.yarnpkg.com/react-dom/-/react-dom-19.0.0.tgz#43446f1f01c65a4cd7f7588083e686a6726cfb57"

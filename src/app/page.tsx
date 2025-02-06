@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Button from "@/components/Button";
 import AddModal from "@/components/AddModal";
 import Image from "next/image";
@@ -27,7 +27,7 @@ export default function Home() {
         )
       : null;
 
-  const getData = () => {
+  const getData = useCallback(() => {
     const _data = localStorage.getItem("data")
       ? JSON.parse(localStorage.getItem("data")!)
       : [];
@@ -37,11 +37,11 @@ export default function Home() {
 
       console.log("_data :>> ", _data);
     }
-  };
+  }, [totalAmount]);
 
   useEffect(() => {
     getData();
-  }, []);
+  });
 
   const handleClear = () => {
     localStorage.removeItem("data");

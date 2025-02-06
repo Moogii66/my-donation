@@ -58,7 +58,7 @@
 // export { Button, buttonVariants };
 import React from "react";
 
-import { Ellipsis, Ring } from "react-css-spinners";
+// import { Ring } from "react-css-spinners";
 
 interface ButtonProps {
   onClick?: () => void;
@@ -99,12 +99,13 @@ const Button = ({
         //   <div className="w-16 h-16 border-t-4 border-b-4 border-blue-500 rounded-full "></div>
         // </div>
 
-        <Ring
-          color={second ? "#1C2634" : "#ffffff"}
-          size={18}
-          thickness={2}
-          className="pt-1 mb-1 mx-5"
-        />
+        // <Ring
+        //   color={second ? "#1C2634" : "#ffffff"}
+        //   size={18}
+        //   thickness={2}
+        //   className="pt-1 mb-1 mx-5"
+        // />
+        <div></div>
       ) : (
         children
       )}
