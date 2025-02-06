@@ -38,7 +38,7 @@ export default function AddModal({
   };
 
   return (
-    <div className="fixed inset-0 flex bg-black bg-opacity-50 z-50">
+    <div className="fixed inset-0 flex place-content-center items-center bg-black bg-opacity-50 z-50">
       <div className="bg-white px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4">
         <>
           <div
