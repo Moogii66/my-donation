@@ -142,7 +142,7 @@ export default function Home() {
               className="flex justify-between w-full p-2 border-b"
             >
               <span>{item.name}</span>
-              <span>{formatAmount(item.amount) + " ₮"}</span>
+              <span>{formatAmount(item.amount) + " ₮&"}</span>
             </div>
           ))}
           <Button onClick={() => setVisible(true)}>add</Button>
