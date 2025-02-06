@@ -38,7 +38,7 @@ export default function AddModal({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div className="fixed inset-0 flex bg-black bg-opacity-50 z-50">
       <div className="bg-white px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4">
         <>
           <div
@@ -54,7 +54,7 @@ export default function AddModal({
             Нэвтрэх
           </h2>
 
-          <div className="justify-center w-96">
+          <form onSubmit={onClose} className="justify-center w-96">
             <input
               type="text"
               value={name}
@@ -92,9 +92,9 @@ export default function AddModal({
             )}
 
             <div className="flex place-content-center mt-4">
-              <Button onClick={onClose}>Хадгалах</Button>
+              <Button type="submit">Хадгалах</Button>
             </div>
-          </div>
+          </form>
         </>
       </div>
     </div>

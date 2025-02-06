@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Button from "@/components/Button";
 import AddModal from "@/components/AddModal";
 import Image from "next/image";
@@ -18,30 +18,39 @@ export default function Home() {
   const [imageUrl, setImageUrl] = useState("");
   const [visible, setVisible] = useState(false);
   const [amount, setAmount] = useState("");
-  const [oldTotal, setOldTotal] = useState(0);
-  const totalAmount = data.reduce((sum, item) => sum + item.amount, 0);
-  const maxAmountItem =
-    data.length > 0
-      ? data.reduce((prev, current) =>
-          prev.amount > current.amount ? prev : current
-        )
-      : null;
+
+  // Using ref to store old total to prevent unnecessary re-renders
+  const oldTotalRef = useRef(0);
+
+  const totalAmount = useMemo(
+    () => data.reduce((sum, item) => sum + item.amount, 0),
+    [data]
+  );
+
+  const maxAmountItem = useMemo(
+    () =>
+      data.length > 0
+        ? data.reduce((prev, current) =>
+            prev.amount > current.amount ? prev : current
+          )
+        : null,
+    [data]
+  );
 
   const getData = useCallback(() => {
-    const _data = localStorage.getItem("data")
-      ? JSON.parse(localStorage.getItem("data")!)
-      : [];
-    if (_data.length !== 0) {
-      setOldTotal(totalAmount);
-      setData(_data);
+    const _data = JSON.parse(localStorage.getItem("data") || "[]");
 
-      console.log("_data :>> ", _data);
-    }
+    // Store old total before updating data
+    oldTotalRef.current = totalAmount;
+
+    setData(_data);
+    console.log("_data :>> ", _data);
   }, [totalAmount]);
 
   useEffect(() => {
     getData();
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleClear = () => {
     localStorage.removeItem("data");
@@ -53,20 +62,20 @@ export default function Home() {
   const handleButton = () => {
     setVisible(false);
     if (name !== "" && amount !== "") {
-      const item = {
-        name: name,
+      const newItem = {
+        name,
         amount: parseFloat(amount),
-        imageUrl: imageUrl,
+        imageUrl,
       };
-      const _temp: MainItemType[] = localStorage.getItem("data")
-        ? JSON.parse(localStorage.getItem("data")!)
-        : [];
-      setOldTotal(totalAmount);
-      _temp.push(item);
+      const _temp: MainItemType[] = JSON.parse(
+        localStorage.getItem("data") || "[]"
+      );
+
+      oldTotalRef.current = totalAmount; // Store old total before updating data
+      _temp.push(newItem);
       localStorage.setItem("data", JSON.stringify(_temp));
-      setTimeout(() => {
-        getData();
-      }, 200);
+
+      setTimeout(() => getData(), 200);
     }
 
     setName("");
@@ -75,14 +84,21 @@ export default function Home() {
   };
 
   function Number({ n }: { n: number }) {
+    const [prevTotal, setPrevTotal] = useState(oldTotalRef.current);
+
+    useEffect(() => {
+      setPrevTotal(oldTotalRef.current);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [oldTotalRef.current]); // Update only when `oldTotal` changes
+
     return (
       <CountUp
-        start={oldTotal}
+        start={prevTotal}
         end={n}
-        duration={1.5}
+        duration={3} // Slow down animation
         separator=","
-        // prefix="$"
         suffix=" ₮"
+        redraw={true}
       />
     );
   }
@@ -109,7 +125,6 @@ export default function Home() {
               );
             }
           })}
-          {/*  */}
         </div>
         <div className="border border-cyan-200 col-span-2 flex flex-col items-center place-content-center font-bold text-48 p-4">
           {maxAmountItem && (
