@@ -83,7 +83,7 @@ const Button = ({
   return (
     <button
       type={type}
-      className={`px-4 py-3  rounded-xl h-14 font-semibold text-18 place-content-center flex-row flex items-center  ${className} ${
+      className={`px-6 py-2  rounded-xl h-12 font-semibold text-18 place-content-center flex-row flex items-center  ${className} ${
         second
           ? red
             ? "border border-red-500 text-red-500"

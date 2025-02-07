@@ -17,6 +17,7 @@
     "react": "^19.0.0",
     "react-countup": "^6.5.3",
     "react-dom": "^19.0.0",
+    "react-image-crop": "^11.0.7",
     "react-spring": "^9.7.5",
     "vercel": "^41.0.1"
   },
