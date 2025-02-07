@@ -69,7 +69,11 @@ export default function Home() {
   return (
     <div
       className="relative min-h-screen bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/background.jpg')" }} // Using an image from `public`
+      style={{
+        backgroundImage: "url('/background.jpg')",
+        // backgroundPosition: "-4px center",
+        backgroundPosition: "25px center",
+      }} // Using an image from `public`
     >
       {/* Background Color Overlay */}
       <div className="absolute inset-0 bg-black/20"></div>
@@ -116,14 +120,14 @@ export default function Home() {
         </div>
 
         {/* Center panel for total donation */}
-        <div className=" col-span-2 flex flex-col gap-4 p-4 h-screen overflow-auto font-bold text-48 z-10">
+        <div className=" col-span-2 flex flex-col gap-4 p-4 h-screen overflow-auto font-bold text-48 z-10 ">
           <div className=" h-[30%] justify-center items-center flex">
             <Image
               src={logo}
               alt={"adsds"}
               width={1000}
               height={1000}
-              className="rounded-2xl w-[600px] object-contain"
+              className="rounded-2xl w-[600px] object-contain "
             />
           </div>
           <div className=" h-[70%] flex justify-center items-center  ">
@@ -161,7 +165,7 @@ export default function Home() {
             {/* Scrolling Donation List */}
             <div
               className={classNames(
-                "relative w-full z-10 pt-4 animate-scrollUp",
+                "relative w-full z-10 pt-4",
                 // "relative w-full z-10 pt-24",
                 data.length > 20 ? "animate-scrollUp" : ""
               )}
