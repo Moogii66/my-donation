@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import CountUp from "react-countup";
 
 interface NumberProps {
@@ -7,19 +7,22 @@ interface NumberProps {
 }
 
 export default function Number({ n }: NumberProps) {
-  const prevTotalRef = useRef(n); // Store previous total
+  const [prevTotal, setPrevTotal] = useState(n);
 
   useEffect(() => {
-    if (prevTotalRef.current !== n) {
-      prevTotalRef.current = n; // Update only when `n` changes
+    if (n !== prevTotal) {
+      setPrevTotal(prevTotal); // Keep old value for animation
+      setTimeout(() => {
+        setPrevTotal(n); // Update to new total after delay
+      }, 1000);
     }
   }, [n]);
 
   return (
     <CountUp
-      start={prevTotalRef.current}
-      end={n}
-      duration={3}
+      start={prevTotal} // Animate from previous total
+      end={n} // Animate to new total
+      duration={5} // Animation duration in seconds
       separator=","
       suffix=" ₮"
       redraw={true}
