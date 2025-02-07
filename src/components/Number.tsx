@@ -19,13 +19,18 @@ export default function Number({ n }: NumberProps) {
   }, [n]);
 
   return (
-    <CountUp
-      start={prevTotal} // Animate from previous total
-      end={n} // Animate to new total
-      duration={5} // Animation duration in seconds
-      separator=","
-      suffix=" ₮"
-      redraw={true}
-    />
+    <div
+      className="tracking-wide  drop-shadow-lg"
+      style={{ fontFamily: "Inter, sans-serif", fontWeight: 900 }}
+    >
+      <CountUp
+        start={prevTotal} // Animate from previous total
+        end={n} // Animate to new total
+        duration={5} // Animation duration in seconds
+        separator=","
+        suffix=" ₮"
+        redraw={true}
+      />
+    </div>
   );
 }

@@ -145,8 +145,8 @@ const config: Config = {
         },
       },
       animation: {
-        scrollUp: "scrollUp 30s linear infinite",
-        scrollDown: "scrollDown 30s linear infinite",
+        scrollUp: "scrollUp 40s linear infinite",
+        scrollDown: "scrollDown 40s linear infinite",
       },
 
       keyframes: {

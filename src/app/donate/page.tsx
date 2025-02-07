@@ -1,17 +1,26 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 // import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import Image from "next/image";
 import ReactCrop, { Crop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 
+interface MainItemType {
+  name: string;
+  amount: number;
+  imageUrl: string;
+}
+
 export default function Donate() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState("");
+
+  const [data, setData] = useState<MainItemType[]>([]); // Store donations
+
   const [crop, setCrop] = useState<Crop>({
     unit: "%",
     width: 100,
@@ -20,6 +29,15 @@ export default function Donate() {
     y: 0,
   });
   const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = () => {
+    const storedData = JSON.parse(localStorage.getItem("data") || "[]");
+    setData(storedData);
+  };
   //   const router = useRouter();
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,12 +70,29 @@ export default function Donate() {
     // router.push("/"); // Redirect to home page
   };
 
+  const handleClear = () => {
+    const confirmDelete = window.confirm(
+      "Та бүх хандивыг устгахдаа итгэлтэй байна уу?"
+    );
+
+    if (confirmDelete) {
+      localStorage.removeItem("data");
+      setData([]); // Clear state immediately
+    }
+  };
+
+  const handleDelete = (index: number) => {
+    const updatedData = data.filter((_, i) => i !== index);
+    localStorage.setItem("data", JSON.stringify(updatedData));
+    setData(updatedData);
+  };
+
   const inputClass =
     "w-full p-4 border border-border rounded-lg focus:border-blue-600  font-regular text-18 placeholder-shown:font-regular resize-none overflow-hidden outline-0 mb-6 bg-[#DDDDDD00]";
 
   return (
     <div className="overflow-scroll fixed inset-0 flex place-content-center items-center bg-black bg-opacity-50 z-50">
-      <div className=" px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4">
+      <div className=" px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4 border">
         <>
           <h2 className=" text-42 text-center font-semibold mb-4">
             Хандив нэмэх
@@ -124,7 +159,7 @@ export default function Donate() {
                 alt="Uploaded"
                 width={100}
                 height={100}
-                className="mt-4 rounded-lg w-full h-48"
+                className="mt-4 rounded-lg w-full h-64"
                 style={{ objectFit: "contain" }}
                 priority
               />
@@ -137,6 +172,46 @@ export default function Donate() {
             )}
           </form>
         </>
+      </div>
+      <div className=" border rounded-lg p-4 w-[600px] ml-10">
+        <h3 className="text-xl font-semibold mb-4">Нийт - {data.length}</h3>
+        <div className="overflow-auto h-96 ">
+          {data.length > 0 ? (
+            data.map((item, index) => (
+              <div
+                key={index}
+                className="flex justify-between items-center border-b p-2"
+              >
+                <div className="flex items-center gap-3">
+                  {item.imageUrl && (
+                    <Image
+                      src={item.imageUrl}
+                      alt="donation"
+                      width={50}
+                      height={50}
+                      className="rounded-lg"
+                    />
+                  )}
+                  <div>
+                    <p className="font-semibold">{item.name}</p>
+                    <p>{item.amount.toLocaleString()} ₮</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDelete(index)}
+                  className="text-red-500 font-semibold hover:text-red-700"
+                >
+                  Устгах
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-gray-500">Хандив байхгүй байна.</p>
+          )}
+        </div>
+        <div className="py-6 justify-end flex">
+          <Button onClick={handleClear}>Бүгдийн устгах</Button>
+        </div>
       </div>
     </div>
     // <div className="h-screen flex flex-col items-center justify-center">
@@ -208,32 +283,68 @@ const getCroppedImg = (
 ): Promise<string> => {
   return new Promise((resolve) => {
     const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      console.error("Canvas context is not available.");
+      return;
+    }
+
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
 
-    canvas.width = crop.width * scaleX;
-    canvas.height = crop.height * scaleY;
-    const ctx = canvas.getContext("2d");
+    canvas.width = crop.width * (scaleX || 1);
+    canvas.height = crop.height * (scaleY || 1);
 
-    if (ctx) {
-      ctx.drawImage(
-        image,
-        crop.x * scaleX,
-        crop.y * scaleY,
-        crop.width * scaleX,
-        crop.height * scaleY,
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
+    ctx.drawImage(
+      image,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.width * scaleX,
+      crop.height * scaleY,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
 
-      // Convert to base64 instead of using Blob
-      const base64Image = canvas.toDataURL("image/jpeg");
-      resolve(base64Image);
-    }
+    // Convert to Base64 instead of using Blob
+    const base64Image = canvas.toDataURL("image/jpeg");
+    resolve(base64Image);
   });
 };
+// const getCroppedImg = (
+//   image: HTMLImageElement,
+//   crop: Crop
+// ): Promise<string> => {
+//   return new Promise((resolve) => {
+//     const canvas = document.createElement("canvas");
+//     const scaleX = image.naturalWidth / image.width;
+//     const scaleY = image.naturalHeight / image.height;
+
+//     canvas.width = crop.width * scaleX;
+//     canvas.height = crop.height * scaleY;
+//     const ctx = canvas.getContext("2d");
+
+//     if (ctx) {
+//       ctx.drawImage(
+//         image,
+//         crop.x * scaleX,
+//         crop.y * scaleY,
+//         crop.width * scaleX,
+//         crop.height * scaleY,
+//         0,
+//         0,
+//         canvas.width,
+//         canvas.height
+//       );
+
+//       // Convert to base64 instead of using Blob
+//       const base64Image = canvas.toDataURL("image/jpeg");
+//       resolve(base64Image);
+//     }
+//   });
+// };
 
 // const getCroppedImg = (
 //   image: HTMLImageElement,
