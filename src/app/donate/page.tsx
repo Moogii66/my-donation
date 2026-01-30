@@ -33,8 +33,8 @@ export default function Donate() {
     unit: "%",
     width: 100,
     height: 100,
-    x: 10,
-    y: 10,
+    x: 0,
+    y: 0,
   });
 
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
@@ -102,12 +102,14 @@ export default function Donate() {
   // -------------------------
   // Submit donation
   // -------------------------
-  const handleSubmit = () => {
-    // e?.preventDefault?.();
+  const handleSubmit = (e: React.FormEvent) => {
+    e?.preventDefault?.();
 
     if (!name.trim() || !amount.trim()) {
       return alert("Бүх талбарыг бөглөнө үү!");
     }
+
+    console.log("imageUrl :>> ", imageUrl);
 
     const newItem: MainItemType = {
       name: name.trim(),
@@ -121,7 +123,13 @@ export default function Donate() {
 
     const next = [...stored, newItem];
 
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      alert(
+        "Таны browser localStorage хадгалахгүй байна (private mode байж магадгүй).",
+      );
+    }
     setData(next); // ✅ заавал нэм
 
     // ✅ clear
@@ -286,9 +294,9 @@ export default function Donate() {
           {!image && (
             <button
               type="submit"
-              className="bg-green-600 text-white px-6 py-3 rounded-lg w-full mt-4"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg w-full mt-4"
             >
-              Хадгалах
+              SAVE
             </button>
           )}
         </form>
@@ -334,17 +342,6 @@ export default function Donate() {
         </div>
 
         <div className="py-6 justify-end flex">
-          {!image && (
-            <div className="flex">
-              <button
-                type="button"
-                onClick={() => handleSubmit()}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg mr-4"
-              >
-                Хадгалах
-              </button>
-            </div>
-          )}
           <Button onClick={handleClear}>Бүгдийн устгах</Button>
         </div>
       </div>
