@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Image from "next/image";
 import Number from "@/components/Number"; // Import Counter Component
 
-import logo from "../../public/jcilogo_2.png";
+// import logo from "../../public/jcilogo_2.png";
 import classNames from "classnames";
 // import logo1 from "../../public/jcilogo_1.png";
 

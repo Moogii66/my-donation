@@ -5,7 +5,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Button from "@/components/Button";
 import Image from "next/image";
 import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
-import "react-image-crop/dist/ReactCrop.css";
+// import "react-image-crop/dist/ReactCrop.css";
 
 interface MainItemType {
   name: string;
