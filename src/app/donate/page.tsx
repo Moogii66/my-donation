@@ -31,6 +31,9 @@ const uploadToCloudinary = async (file: Blob) => {
   const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
   const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
 
+  console.log("cloudName:", cloudName);
+  console.log("uploadPreset:", uploadPreset);
+
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", uploadPreset);
