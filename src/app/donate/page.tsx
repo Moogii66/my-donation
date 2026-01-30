@@ -239,16 +239,6 @@ export default function Donate() {
           )}
 
           {/* SUBMIT */}
-          {!image && (
-            <div className="flex place-content-center mt-4">
-              <button
-                type="submit"
-                className="mt-4 bg-green-600 text-white px-6 py-3 rounded-lg"
-              >
-                Хадгалах
-              </button>
-            </div>
-          )}
         </form>
       </div>
 
@@ -292,6 +282,17 @@ export default function Donate() {
         </div>
 
         <div className="py-6 justify-end flex">
+          {!image && (
+            <div className="flex">
+              <button
+                // type="submit"
+                onClick={handleSubmit}
+                className=" bg-green-600 text-white px-6 py-3 rounded-lg mr-4"
+              >
+                Хадгалах
+              </button>
+            </div>
+          )}
           <Button onClick={handleClear}>Бүгдийн устгах</Button>
         </div>
       </div>
