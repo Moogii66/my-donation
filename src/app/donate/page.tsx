@@ -241,7 +241,12 @@ export default function Donate() {
           {/* SUBMIT */}
           {!image && (
             <div className="flex place-content-center mt-4">
-              <Button type="submit">Хадгалах</Button>
+              <button
+                type="submit"
+                className="mt-4 bg-green-600 text-white px-6 py-3 rounded-lg"
+              >
+                Хадгалах
+              </button>
             </div>
           )}
         </form>
