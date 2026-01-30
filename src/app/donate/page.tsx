@@ -102,44 +102,53 @@ export default function Donate() {
   // -------------------------
   // Submit donation
   // -------------------------
-  const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
-    e?.preventDefault?.();
+  const handleSubmit = () => {
+    if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
 
-    if (!name.trim() || !amount.trim()) {
-      alert("Бүх талбарыг бөглөнө үү!");
-      return;
-    }
-
-    if (!imageUrl) {
-      alert("Зургаа хадгалаад дараа нь хадгална уу!");
-      return;
-    }
-
-    const parsedAmount = Number(amount);
-
-    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      return alert("Хандивын дүн буруу байна!");
-    }
-
-    const newItem: MainItemType = {
-      name: name.trim(),
-      amount: Number(amount),
-      imageUrl,
-    };
-
-    const stored: MainItemType[] = JSON.parse(
-      localStorage.getItem(STORAGE_KEY) || "[]",
-    );
-
-    const next = [newItem, ...stored];
-
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    setData(next);
-
-    setName("");
-    setAmount("");
-    setImageUrl("");
+    const newItem = { name, amount: parseFloat(amount), imageUrl };
+    const data = JSON.parse(localStorage.getItem("data") || "[]");
+    data.push(newItem);
+    localStorage.setItem("data", JSON.stringify(data));
   };
+  // router.push("/"); // Redirect to home page
+  // const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+  //   e?.preventDefault?.();
+
+  //   if (!name.trim() || !amount.trim()) {
+  //     alert("Бүх талбарыг бөглөнө үү!");
+  //     return;
+  //   }
+
+  //   if (!imageUrl) {
+  //     alert("Зургаа хадгалаад дараа нь хадгална уу!");
+  //     return;
+  //   }
+
+  //   const parsedAmount = Number(amount);
+
+  //   if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+  //     return alert("Хандивын дүн буруу байна!");
+  //   }
+
+  //   const newItem: MainItemType = {
+  //     name: name.trim(),
+  //     amount: Number(amount),
+  //     imageUrl,
+  //   };
+
+  //   const stored: MainItemType[] = JSON.parse(
+  //     localStorage.getItem(STORAGE_KEY) || "[]",
+  //   );
+
+  //   const next = [newItem, ...stored];
+
+  //   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  //   setData(next);
+
+  //   setName("");
+  //   setAmount("");
+  //   setImageUrl("");
+  // };
 
   const handleClear = () => {
     const confirmDelete = window.confirm(
@@ -301,7 +310,7 @@ export default function Donate() {
             <div className="flex">
               <button
                 type="button"
-                onClick={(e) => handleSubmit(e)}
+                onClick={() => handleSubmit()}
                 className="bg-green-600 text-white px-6 py-3 rounded-lg mr-4"
               >
                 Хадгалах
