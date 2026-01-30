@@ -36,7 +36,7 @@ export default function Home() {
 
   // Fetch data from localStorage
   const getData = useCallback(() => {
-    const _data = JSON.parse(localStorage.getItem("data") || "[]");
+    const _data = JSON.parse(localStorage.getItem("GANG_DATA") || "[]");
     setData(_data);
 
     // Scroll to the bottom when new data is added

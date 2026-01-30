@@ -17,7 +17,7 @@ interface MainItemType {
   imageUrl: string; // base64
 }
 
-const STORAGE_KEY = "data";
+const STORAGE_KEY = "GANG_DATA";
 
 export default function Donate() {
   const [name, setName] = useState("");
@@ -106,9 +106,9 @@ export default function Donate() {
     if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
 
     const newItem = { name, amount: parseFloat(amount), imageUrl };
-    const data = JSON.parse(localStorage.getItem("data") || "[]");
+    const data = JSON.parse(localStorage.getItem("GANG_DATA") || "[]");
     data.push(newItem);
-    localStorage.setItem("data", JSON.stringify(data));
+    localStorage.setItem("GANG_DATA", JSON.stringify(data));
   };
   // router.push("/"); // Redirect to home page
   // const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
