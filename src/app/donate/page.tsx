@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from "react";
 // import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import Image from "next/image";
-import ReactCrop, { Crop } from "react-image-crop";
+import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 
 interface MainItemType {
@@ -21,10 +21,12 @@ export default function Donate() {
 
   const [data, setData] = useState<MainItemType[]>([]); // Store donations
 
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+
   const [crop, setCrop] = useState<Crop>({
     unit: "%",
     width: 100,
-    height: 40,
+    height: 100,
     x: 0,
     y: 0,
   });
@@ -52,12 +54,19 @@ export default function Donate() {
   };
 
   const handleCropAndSave = async () => {
-    if (imgRef.current && crop.width && crop.height) {
-      const croppedImage = await getCroppedImg(imgRef.current, crop);
-      setImageUrl(croppedImage);
-      setImage(null);
-    }
+    if (!imgRef.current || !completedCrop) return;
+
+    const croppedImage = await getCroppedImg(imgRef.current, completedCrop);
+    setImageUrl(croppedImage);
+    setImage(null);
   };
+  // const handleCropAndSave = async () => {
+  //   if (imgRef.current && crop.width && crop.height) {
+  //     const croppedImage = await getCroppedImg(imgRef.current, crop);
+  //     setImageUrl(croppedImage);
+  //     setImage(null);
+  //   }
+  // };
 
   const handleSubmit = () => {
     if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
@@ -72,7 +81,7 @@ export default function Donate() {
 
   const handleClear = () => {
     const confirmDelete = window.confirm(
-      "Та бүх хандивыг устгахдаа итгэлтэй байна уу?"
+      "Та бүх хандивыг устгахдаа итгэлтэй байна уу?",
     );
 
     if (confirmDelete) {
@@ -133,6 +142,7 @@ export default function Donate() {
                   onChange={(c) => setCrop(c)}
                   aspect={1} // Keep a square aspect ratio
                   locked={true} // Allow moving and resizing crop area
+                  onComplete={(c) => setCompletedCrop(c)}
                 >
                   <Image
                     ref={imgRef}
@@ -279,7 +289,7 @@ export default function Donate() {
 // Crop Image Utility
 const getCroppedImg = (
   image: HTMLImageElement,
-  crop: Crop
+  crop: PixelCrop,
 ): Promise<string> => {
   return new Promise((resolve) => {
     const canvas = document.createElement("canvas");
@@ -305,7 +315,7 @@ const getCroppedImg = (
       0,
       0,
       canvas.width,
-      canvas.height
+      canvas.height,
     );
 
     // Convert to Base64 instead of using Blob

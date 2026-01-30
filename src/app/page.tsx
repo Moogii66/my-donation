@@ -28,10 +28,10 @@ export default function Home() {
     () =>
       data.length > 0
         ? data.reduce((prev, current) =>
-            prev.amount > current.amount ? prev : current
+            prev.amount > current.amount ? prev : current,
           )
         : null,
-    [data]
+    [data],
   );
 
   // Fetch data from localStorage
@@ -68,15 +68,16 @@ export default function Home() {
 
   return (
     <div
-      className="relative min-h-screen bg-cover bg-center bg-no-repeat"
+      className="relative min-h-screen bg-cover bg-center bg-no-repeat  bg-p mb-"
       style={{
-        backgroundImage: "url('/background.jpg')",
+        // backgroundImage: "url('/background.jpg')",
+        backgroundImage: "url('/back3.png')",
         // backgroundPosition: "-4px center",
-        backgroundPosition: "25px center",
+        // backgroundPosition: "25px center",
       }} // Using an image from `public`
     >
       {/* Background Color Overlay */}
-      <div className="absolute inset-0 bg-black/20"></div>
+      <div className="absolute inset-0 bg-black/5"></div>
 
       <div className="w-screen h-screen grid grid-cols-4">
         {/* Image container with auto-scrolling */}
@@ -97,7 +98,7 @@ export default function Home() {
               className={classNames(
                 "relative w-full z-10 p-4 ",
                 // "relative w-full z-10 pt-24",
-                data.length > 4 ? "animate-scrollUp" : ""
+                data.length > 4 ? "animate-scrollUp" : "",
               )}
             >
               {data.map((item, index) => {
@@ -122,13 +123,13 @@ export default function Home() {
         {/* Center panel for total donation */}
         <div className=" col-span-2 flex flex-col gap-4 p-4 h-screen overflow-auto font-bold text-48 z-10 ">
           <div className=" h-[30%] justify-center items-center flex">
-            <Image
+            {/* <Image
               src={logo}
               alt={"adsds"}
               width={1000}
               height={1000}
-              className="rounded-2xl w-[600px] object-contain "
-            />
+              className="rounded-2xl w-[600px] object-contain transition-opacity-100"
+            /> */}
           </div>
           <div className=" h-[70%] flex justify-center items-center  ">
             <div className="  w-full mx-28 p-10 rounded-2xl bg-black/50 backdrop-blur-sm">
@@ -167,7 +168,7 @@ export default function Home() {
               className={classNames(
                 "relative w-full z-10 pt-4",
                 // "relative w-full z-10 pt-24",
-                data.length > 20 ? "animate-scrollUp" : ""
+                data.length > 20 ? "animate-scrollUp" : "",
               )}
             >
               {data.map((item, index) => (
