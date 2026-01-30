@@ -102,15 +102,23 @@ export default function Donate() {
   // -------------------------
   // Submit donation
   // -------------------------
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault?.();
 
     if (!name.trim() || !amount.trim()) {
-      return alert("Бүх талбарыг бөглөнө үү!");
+      alert("Бүх талбарыг бөглөнө үү!");
+      return;
     }
 
     if (!imageUrl) {
-      return alert("Зургаа хадгалаад дараа нь хадгална уу!");
+      alert("Зургаа хадгалаад дараа нь хадгална уу!");
+      return;
+    }
+
+    const parsedAmount = Number(amount);
+
+    if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+      return alert("Хандивын дүн буруу байна!");
     }
 
     const newItem: MainItemType = {
@@ -128,7 +136,6 @@ export default function Donate() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setData(next);
 
-    // clear form
     setName("");
     setAmount("");
     setImageUrl("");
@@ -239,6 +246,14 @@ export default function Donate() {
           )}
 
           {/* SUBMIT */}
+          {!image && (
+            <button
+              type="submit"
+              className="bg-green-600 text-white px-6 py-3 rounded-lg w-full mt-4"
+            >
+              Хадгалах
+            </button>
+          )}
         </form>
       </div>
 
@@ -285,9 +300,9 @@ export default function Donate() {
           {!image && (
             <div className="flex">
               <button
-                // type="submit"
-                onClick={handleSubmit}
-                className=" bg-green-600 text-white px-6 py-3 rounded-lg mr-4"
+                type="button"
+                onClick={(e) => handleSubmit(e)}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg mr-4"
               >
                 Хадгалах
               </button>
