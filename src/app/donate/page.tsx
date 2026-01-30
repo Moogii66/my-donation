@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import Button from "@/components/Button";
 import ReactCrop, {
   Crop,
   PixelCrop,
@@ -12,28 +11,59 @@ import "react-image-crop/dist/ReactCrop.css";
 interface MainItemType {
   name: string;
   amount: number;
-  imageUrl: string; // base64 or ""
+  imageUrl: string; // ✅ Cloudinary URL
 }
 
 const STORAGE_KEY = "GANG_DATA";
 
-function canUseLocalStorage() {
+const canUseLocalStorage = () => {
   try {
-    const key = "__test__";
-    localStorage.setItem(key, "1");
-    localStorage.removeItem(key);
+    const k = "__test__";
+    localStorage.setItem(k, "1");
+    localStorage.removeItem(k);
     return true;
   } catch {
     return false;
   }
-}
+};
+
+const uploadToCloudinary = async (file: Blob) => {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!;
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("upload_preset", uploadPreset);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
+
+  const text = await res.text();
+  console.log("Cloudinary status:", res.status);
+  console.log("Cloudinary response:", text);
+
+  if (!res.ok) throw new Error("Cloudinary upload failed");
+
+  const data = JSON.parse(text);
+  return data.secure_url as string;
+};
 
 export default function Donate() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
 
-  const [image, setImage] = useState<string | null>(null); // original base64
-  const [imageUrl, setImageUrl] = useState<string>(""); // cropped base64
+  // ✅ preview for crop
+  const [image, setImage] = useState<string | null>(null);
+
+  // ✅ final uploaded URL
+  const [imageUrl, setImageUrl] = useState<string>("");
+
+  const [uploading, setUploading] = useState(false);
 
   const [data, setData] = useState<MainItemType[]>([]);
 
@@ -66,37 +96,46 @@ export default function Donate() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // ✅ Preview for crop (base64 зөвхөн preview)
     const reader = new FileReader();
     reader.onloadend = () => {
       setImage(reader.result as string);
-
-      // reset previous crop result
-      setImageUrl("");
       setCompletedCrop(null);
+      setImageUrl(""); // шинэ зураг upload хийх гэж байна
     };
-
     reader.readAsDataURL(file);
   };
 
-  const handleCropAndSave = async () => {
+  const handleCropAndUpload = async () => {
     if (!imgRef.current) return alert("Зураг уншигдсангүй байна!");
 
-    // ✅ Crop хийгээгүй байсан ч бүтэн зургаа хадгалдаг болгож болно
     if (
       !completedCrop ||
       completedCrop.width <= 0 ||
       completedCrop.height <= 0
     ) {
-      setImageUrl(image || "");
-      setImage(null);
-      return;
+      return alert("Crop сонгоогүй байна. Crop-оо хөдөлгөөрэй!");
     }
 
-    const croppedImage = await getCroppedImg(imgRef.current, completedCrop);
+    try {
+      setUploading(true);
 
-    setImageUrl(croppedImage);
-    setImage(null);
-    setCompletedCrop(null);
+      // ✅ crop => blob
+      const blob = await getCroppedBlob(imgRef.current, completedCrop);
+
+      // ✅ blob => cloudinary url
+      const url = await uploadToCloudinary(blob);
+
+      setImageUrl(url);
+      setImage(null); // crop UI хаана
+      setCompletedCrop(null);
+      alert("✅ Зураг амжилттай Cloudinary дээр хадгалагдлаа!");
+    } catch (err) {
+      console.log(err);
+      alert("❌ Зураг upload хийхэд алдаа гарлаа.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -111,27 +150,22 @@ export default function Donate() {
       return alert("Хандивын дүн буруу байна!");
     }
 
-    // ✅ зураг оруулаагүй бол imageUrl = ""
     const newItem: MainItemType = {
       name: name.trim(),
       amount: parsedAmount,
-      imageUrl: imageUrl || "",
+      imageUrl: imageUrl || "", // зураггүй байж болно
     };
 
-    // ✅ localStorage боломжгүй бол зөвхөн local state дээр нэмнэ
+    // ✅ localStorage block бол түр хадгалах (refresh хийвэл алга болно)
     if (!canUseLocalStorage()) {
-      setData((prev) => {
-        const next = [...prev, newItem];
-        return next;
-      });
+      setData((prev) => [...prev, newItem]);
+      alert("⚠️ Энэ browser localStorage хадгалахгүй байна. Түр хадгаллаа!");
 
       setName("");
       setAmount("");
-      setImage("");
+      setImage(null);
       setImageUrl("");
-      return alert(
-        "⚠️ Энэ browser localStorage хадгалахгүй байна. Түр хадгаллаа (refresh хийвэл алга болно).",
-      );
+      return;
     }
 
     const stored: MainItemType[] = JSON.parse(
@@ -142,10 +176,9 @@ export default function Donate() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     setData(next);
 
-    // ✅ Home page update event
+    // ✅ cross-tab update (Home page)
     window.dispatchEvent(new Event("gang_data_updated"));
 
-    // clear form
     setName("");
     setAmount("");
     setImage(null);
@@ -158,26 +191,23 @@ export default function Donate() {
     );
     if (!confirmDelete) return;
 
-    if (!canUseLocalStorage()) {
-      setData([]);
-      return;
-    }
-
-    localStorage.removeItem(STORAGE_KEY);
-    setData([]);
-
-    window.dispatchEvent(new Event("gang_data_updated"));
-  };
-
-  const handleDelete = (index: number) => {
-    const updatedData = data.filter((_, i) => i !== index);
-
     if (canUseLocalStorage()) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+      localStorage.removeItem(STORAGE_KEY);
       window.dispatchEvent(new Event("gang_data_updated"));
     }
 
-    setData(updatedData);
+    setData([]);
+  };
+
+  const handleDelete = (index: number) => {
+    const updated = data.filter((_, i) => i !== index);
+
+    if (canUseLocalStorage()) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("gang_data_updated"));
+    }
+
+    setData(updated);
   };
 
   const inputClass =
@@ -241,30 +271,39 @@ export default function Donate() {
 
               <button
                 type="button"
-                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg"
-                onClick={handleCropAndSave}
+                disabled={uploading}
+                className={`mt-3 px-4 py-2 rounded-lg text-white ${
+                  uploading ? "bg-gray-500" : "bg-blue-600"
+                }`}
+                onClick={handleCropAndUpload}
               >
-                Зураг хадгалах
+                {uploading ? "Upload хийж байна..." : "Зураг хадгалах (Upload)"}
               </button>
             </div>
           )}
 
-          {/* PREVIEW CROPPED IMAGE */}
+          {/* PREVIEW URL */}
           {imageUrl && !image && (
-            <img
-              src={imageUrl}
-              alt="Uploaded"
-              className="mt-4 rounded-lg w-full h-64 object-contain"
-            />
+            <div className="mt-4">
+              <img
+                src={imageUrl}
+                alt="Uploaded"
+                className="rounded-lg w-full h-64 object-contain"
+              />
+              <p className="text-xs mt-2 break-all text-white/60">{imageUrl}</p>
+            </div>
           )}
 
           {/* SUBMIT */}
           {!image && (
             <button
               type="submit"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg w-full mt-4"
+              disabled={uploading}
+              className={`text-white px-6 py-3 rounded-lg w-full mt-4 ${
+                uploading ? "bg-gray-500" : "bg-green-600"
+              }`}
             >
-              SAVESAVE
+              Хадгалах
             </button>
           )}
         </form>
@@ -309,25 +348,28 @@ export default function Donate() {
           )}
         </div>
 
-        <div className="py-6 justify-end flex">
-          <Button onClick={handleClear}>Бүгдийн устгах</Button>
+        <div className="py-6 justify-end flex gap-4">
+          <button
+            onClick={handleClear}
+            className="bg-red-600 text-white px-6 py-3 rounded-lg"
+          >
+            Бүгдийн устгах
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// -------------------------
-// Crop Image Utility (PixelCrop)
-// -------------------------
-const getCroppedImg = (
+// ✅ Crop => Blob
+const getCroppedBlob = (
   image: HTMLImageElement,
   crop: PixelCrop,
-): Promise<string> => {
-  return new Promise((resolve) => {
+): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) return reject("No canvas context");
 
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
@@ -350,7 +392,14 @@ const getCroppedImg = (
       pixelHeight,
     );
 
-    resolve(canvas.toDataURL("image/jpeg", 0.7));
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return reject("Blob conversion failed");
+        resolve(blob);
+      },
+      "image/jpeg",
+      0.8,
+    );
   });
 };
 
@@ -361,8 +410,6 @@ const getCroppedImg = (
 // import ReactCrop, {
 //   Crop,
 //   PixelCrop,
-//   centerCrop,
-//   makeAspectCrop,
 //   convertToPixelCrop,
 // } from "react-image-crop";
 // import "react-image-crop/dist/ReactCrop.css";
@@ -370,62 +417,55 @@ const getCroppedImg = (
 // interface MainItemType {
 //   name: string;
 //   amount: number;
-//   imageUrl: string; // base64
+//   imageUrl: string; // base64 or ""
 // }
 
 // const STORAGE_KEY = "GANG_DATA";
 
+// function canUseLocalStorage() {
+//   try {
+//     const key = "__test__";
+//     localStorage.setItem(key, "1");
+//     localStorage.removeItem(key);
+//     return true;
+//   } catch {
+//     return false;
+//   }
+// }
+
 // export default function Donate() {
 //   const [name, setName] = useState("");
 //   const [amount, setAmount] = useState("");
-//   const [image, setImage] = useState<string | null>(null); // original base64 for cropping
+
+//   const [image, setImage] = useState<string | null>(null); // original base64
 //   const [imageUrl, setImageUrl] = useState<string>(""); // cropped base64
+
 //   const [data, setData] = useState<MainItemType[]>([]);
 
 //   const imgRef = useRef<HTMLImageElement | null>(null);
 
-//   // react-image-crop uses Crop (%/px)
 //   const [crop, setCrop] = useState<Crop>({
 //     unit: "%",
-//     width: 100,
-//     height: 100,
-//     x: 0,
-//     y: 0,
+//     width: 80,
+//     height: 80,
+//     x: 10,
+//     y: 10,
 //   });
 
 //   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
 
-//   // -------------------------
-//   // Storage helpers
-//   // -------------------------
 //   const fetchData = () => {
-//     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-//     setData(stored);
+//     try {
+//       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+//       setData(stored);
+//     } catch {
+//       setData([]);
+//     }
 //   };
 
 //   useEffect(() => {
 //     fetchData();
 //   }, []);
-
-//   // -------------------------
-//   // Crop helpers
-//   // -------------------------
-//   function getCenteredSquareCrop(width: number, height: number) {
-//     // make a centered square crop in %
-//     return centerCrop(
-//       makeAspectCrop(
-//         {
-//           unit: "%",
-//           width: 100,
-//         },
-//         1,
-//         width,
-//         height,
-//       ),
-//       width,
-//       height,
-//     );
-//   }
 
 //   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 //     const file = e.target.files?.[0];
@@ -435,7 +475,7 @@ const getCroppedImg = (
 //     reader.onloadend = () => {
 //       setImage(reader.result as string);
 
-//       // reset old values
+//       // reset previous crop result
 //       setImageUrl("");
 //       setCompletedCrop(null);
 //     };
@@ -445,118 +485,104 @@ const getCroppedImg = (
 
 //   const handleCropAndSave = async () => {
 //     if (!imgRef.current) return alert("Зураг уншигдсангүй байна!");
-//     if (!completedCrop || completedCrop.width <= 0 || completedCrop.height <= 0)
-//       return alert("Crop сонгогдоогүй байна! (зураг дээр crop хөдөлгөнө үү)");
+
+//     // ✅ Crop хийгээгүй байсан ч бүтэн зургаа хадгалдаг болгож болно
+//     if (
+//       !completedCrop ||
+//       completedCrop.width <= 0 ||
+//       completedCrop.height <= 0
+//     ) {
+//       setImageUrl(image || "");
+//       setImage(null);
+//       return;
+//     }
 
 //     const croppedImage = await getCroppedImg(imgRef.current, completedCrop);
 
 //     setImageUrl(croppedImage);
-//     setImage(null); // close crop ui
+//     setImage(null);
 //     setCompletedCrop(null);
 //   };
 
-//   // -------------------------
-//   // Submit donation
-//   // -------------------------
 //   const handleSubmit = (e: React.FormEvent) => {
-//     e?.preventDefault?.();
+//     e.preventDefault();
 
 //     if (!name.trim() || !amount.trim()) {
 //       return alert("Бүх талбарыг бөглөнө үү!");
 //     }
 
-//     console.log("imageUrl :>> ", imageUrl);
+//     const parsedAmount = Number(amount);
+//     if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+//       return alert("Хандивын дүн буруу байна!");
+//     }
 
+//     // ✅ зураг оруулаагүй бол imageUrl = ""
 //     const newItem: MainItemType = {
 //       name: name.trim(),
-//       amount: Number(amount),
-//       imageUrl: imageUrl || "", // ✅ зураггүй бол хоосон
+//       amount: parsedAmount,
+//       imageUrl: imageUrl || "",
 //     };
+
+//     // ✅ localStorage боломжгүй бол зөвхөн local state дээр нэмнэ
+//     if (!canUseLocalStorage()) {
+//       setData((prev) => {
+//         const next = [...prev, newItem];
+//         return next;
+//       });
+
+//       setName("");
+//       setAmount("");
+//       setImage("");
+//       setImageUrl("");
+//       return alert(
+//         "⚠️ Энэ browser localStorage хадгалахгүй байна. Түр хадгаллаа (refresh хийвэл алга болно).",
+//       );
+//     }
 
 //     const stored: MainItemType[] = JSON.parse(
 //       localStorage.getItem(STORAGE_KEY) || "[]",
 //     );
-
 //     const next = [...stored, newItem];
 
-//     try {
-//       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-//     } catch {
-//       alert(
-//         "Таны browser localStorage хадгалахгүй байна (private mode байж магадгүй).",
-//       );
-//     }
-//     setData(next); // ✅ заавал нэм
+//     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+//     setData(next);
 
-//     // ✅ clear
+//     // ✅ Home page update event
+//     window.dispatchEvent(new Event("gang_data_updated"));
+
+//     // clear form
 //     setName("");
 //     setAmount("");
+//     setImage(null);
 //     setImageUrl("");
 //   };
-//   // const handleSubmit = () => {
-//   //   if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
-
-//   //   const newItem = { name, amount: parseFloat(amount), imageUrl };
-//   //   const data = JSON.parse(localStorage.getItem("GANG_DATA") || "[]");
-//   //   data.push(newItem);
-//   //   localStorage.setItem("GANG_DATA", JSON.stringify(data));
-//   // };
-
-//   // router.push("/"); // Redirect to home page
-//   // const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
-//   //   e?.preventDefault?.();
-
-//   //   if (!name.trim() || !amount.trim()) {
-//   //     alert("Бүх талбарыг бөглөнө үү!");
-//   //     return;
-//   //   }
-
-//   //   if (!imageUrl) {
-//   //     alert("Зургаа хадгалаад дараа нь хадгална уу!");
-//   //     return;
-//   //   }
-
-//   //   const parsedAmount = Number(amount);
-
-//   //   if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-//   //     return alert("Хандивын дүн буруу байна!");
-//   //   }
-
-//   //   const newItem: MainItemType = {
-//   //     name: name.trim(),
-//   //     amount: Number(amount),
-//   //     imageUrl,
-//   //   };
-
-//   //   const stored: MainItemType[] = JSON.parse(
-//   //     localStorage.getItem(STORAGE_KEY) || "[]",
-//   //   );
-
-//   //   const next = [newItem, ...stored];
-
-//   //   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-//   //   setData(next);
-
-//   //   setName("");
-//   //   setAmount("");
-//   //   setImageUrl("");
-//   // };
 
 //   const handleClear = () => {
 //     const confirmDelete = window.confirm(
 //       "Та бүх хандивыг устгахдаа итгэлтэй байна уу?",
 //     );
+//     if (!confirmDelete) return;
 
-//     if (confirmDelete) {
-//       localStorage.removeItem(STORAGE_KEY);
+//     if (!canUseLocalStorage()) {
 //       setData([]);
+//       return;
 //     }
+
+//     localStorage.removeItem(STORAGE_KEY);
+//     setData([]);
+
+//     window.dispatchEvent(new Event("gang_data_updated"));
 //   };
 
 //   const handleDelete = (index: number) => {
-//     const updated = data.filter((_, i) => i !== index);
-//     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-//     setData(updated);
+//     const updatedData = data.filter((_, i) => i !== index);
+
+//     if (canUseLocalStorage()) {
+//       localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+//       window.dispatchEvent(new Event("gang_data_updated"));
+//     }
+
+//     setData(updatedData);
 //   };
 
 //   const inputClass =
@@ -599,7 +625,6 @@ const getCroppedImg = (
 //                 crop={crop}
 //                 onChange={(c) => setCrop(c)}
 //                 onComplete={(c) => {
-//                   // ✅ onComplete returns Crop (maybe %)
 //                   if (!imgRef.current) return;
 
 //                   const pixel = convertToPixelCrop(
@@ -607,23 +632,15 @@ const getCroppedImg = (
 //                     imgRef.current.width,
 //                     imgRef.current.height,
 //                   );
+
 //                   setCompletedCrop(pixel);
 //                 }}
-//                 // aspect={1}
 //               >
 //                 <img
 //                   ref={imgRef}
 //                   src={image}
 //                   alt="To crop"
-//                   className="w-full h-[320px] object-cover"
-//                   // onLoad={(e) => {
-//                   //   const img = e.currentTarget;
-//                   //   const nextCrop = getCenteredSquareCrop(
-//                   //     img.width,
-//                   //     img.height,
-//                   //   );
-//                   //   setCrop(nextCrop);
-//                   // }}
+//                   className="w-full h-[320px] object-cover rounded-lg"
 //                 />
 //               </ReactCrop>
 
@@ -652,7 +669,7 @@ const getCroppedImg = (
 //               type="submit"
 //               className="bg-blue-600 text-white px-6 py-3 rounded-lg w-full mt-4"
 //             >
-//               SAVE
+//               SAVESAVE
 //             </button>
 //           )}
 //         </form>
@@ -720,7 +737,6 @@ const getCroppedImg = (
 //     const scaleX = image.naturalWidth / image.width;
 //     const scaleY = image.naturalHeight / image.height;
 
-//     // ✅ Ensure integer size
 //     const pixelWidth = Math.floor(crop.width * scaleX);
 //     const pixelHeight = Math.floor(crop.height * scaleY);
 
@@ -739,7 +755,396 @@ const getCroppedImg = (
 //       pixelHeight,
 //     );
 
-//     // ✅ base64 size багасгах (0.7 чанартай)
 //     resolve(canvas.toDataURL("image/jpeg", 0.7));
 //   });
 // };
+
+// // "use client";
+
+// // import React, { useEffect, useRef, useState } from "react";
+// // import Button from "@/components/Button";
+// // import ReactCrop, {
+// //   Crop,
+// //   PixelCrop,
+// //   centerCrop,
+// //   makeAspectCrop,
+// //   convertToPixelCrop,
+// // } from "react-image-crop";
+// // import "react-image-crop/dist/ReactCrop.css";
+
+// // interface MainItemType {
+// //   name: string;
+// //   amount: number;
+// //   imageUrl: string; // base64
+// // }
+
+// // const STORAGE_KEY = "GANG_DATA";
+
+// // export default function Donate() {
+// //   const [name, setName] = useState("");
+// //   const [amount, setAmount] = useState("");
+// //   const [image, setImage] = useState<string | null>(null); // original base64 for cropping
+// //   const [imageUrl, setImageUrl] = useState<string>(""); // cropped base64
+// //   const [data, setData] = useState<MainItemType[]>([]);
+
+// //   const imgRef = useRef<HTMLImageElement | null>(null);
+
+// //   // react-image-crop uses Crop (%/px)
+// //   const [crop, setCrop] = useState<Crop>({
+// //     unit: "%",
+// //     width: 100,
+// //     height: 100,
+// //     x: 0,
+// //     y: 0,
+// //   });
+
+// //   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+
+// //   // -------------------------
+// //   // Storage helpers
+// //   // -------------------------
+// //   const fetchData = () => {
+// //     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+// //     setData(stored);
+// //   };
+
+// //   useEffect(() => {
+// //     fetchData();
+// //   }, []);
+
+// //   // -------------------------
+// //   // Crop helpers
+// //   // -------------------------
+// //   function getCenteredSquareCrop(width: number, height: number) {
+// //     // make a centered square crop in %
+// //     return centerCrop(
+// //       makeAspectCrop(
+// //         {
+// //           unit: "%",
+// //           width: 100,
+// //         },
+// //         1,
+// //         width,
+// //         height,
+// //       ),
+// //       width,
+// //       height,
+// //     );
+// //   }
+
+// //   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+// //     const file = e.target.files?.[0];
+// //     if (!file) return;
+
+// //     const reader = new FileReader();
+// //     reader.onloadend = () => {
+// //       setImage(reader.result as string);
+
+// //       // reset old values
+// //       setImageUrl("");
+// //       setCompletedCrop(null);
+// //     };
+
+// //     reader.readAsDataURL(file);
+// //   };
+
+// //   const handleCropAndSave = async () => {
+// //     if (!imgRef.current) return alert("Зураг уншигдсангүй байна!");
+// //     if (!completedCrop || completedCrop.width <= 0 || completedCrop.height <= 0)
+// //       return alert("Crop сонгогдоогүй байна! (зураг дээр crop хөдөлгөнө үү)");
+
+// //     const croppedImage = await getCroppedImg(imgRef.current, completedCrop);
+
+// //     setImageUrl(croppedImage);
+// //     setImage(null); // close crop ui
+// //     setCompletedCrop(null);
+// //   };
+
+// //   // -------------------------
+// //   // Submit donation
+// //   // -------------------------
+// //   const handleSubmit = (e: React.FormEvent) => {
+// //     e?.preventDefault?.();
+
+// //     if (!name.trim() || !amount.trim()) {
+// //       return alert("Бүх талбарыг бөглөнө үү!");
+// //     }
+
+// //     console.log("imageUrl :>> ", imageUrl);
+
+// //     const newItem: MainItemType = {
+// //       name: name.trim(),
+// //       amount: Number(amount),
+// //       imageUrl: imageUrl || "", // ✅ зураггүй бол хоосон
+// //     };
+
+// //     const stored: MainItemType[] = JSON.parse(
+// //       localStorage.getItem(STORAGE_KEY) || "[]",
+// //     );
+
+// //     const next = [...stored, newItem];
+
+// //     try {
+// //       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+// //     } catch {
+// //       alert(
+// //         "Таны browser localStorage хадгалахгүй байна (private mode байж магадгүй).",
+// //       );
+// //     }
+// //     setData(next); // ✅ заавал нэм
+
+// //     // ✅ clear
+// //     setName("");
+// //     setAmount("");
+// //     setImageUrl("");
+// //   };
+// //   // const handleSubmit = () => {
+// //   //   if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
+
+// //   //   const newItem = { name, amount: parseFloat(amount), imageUrl };
+// //   //   const data = JSON.parse(localStorage.getItem("GANG_DATA") || "[]");
+// //   //   data.push(newItem);
+// //   //   localStorage.setItem("GANG_DATA", JSON.stringify(data));
+// //   // };
+
+// //   // router.push("/"); // Redirect to home page
+// //   // const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+// //   //   e?.preventDefault?.();
+
+// //   //   if (!name.trim() || !amount.trim()) {
+// //   //     alert("Бүх талбарыг бөглөнө үү!");
+// //   //     return;
+// //   //   }
+
+// //   //   if (!imageUrl) {
+// //   //     alert("Зургаа хадгалаад дараа нь хадгална уу!");
+// //   //     return;
+// //   //   }
+
+// //   //   const parsedAmount = Number(amount);
+
+// //   //   if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
+// //   //     return alert("Хандивын дүн буруу байна!");
+// //   //   }
+
+// //   //   const newItem: MainItemType = {
+// //   //     name: name.trim(),
+// //   //     amount: Number(amount),
+// //   //     imageUrl,
+// //   //   };
+
+// //   //   const stored: MainItemType[] = JSON.parse(
+// //   //     localStorage.getItem(STORAGE_KEY) || "[]",
+// //   //   );
+
+// //   //   const next = [newItem, ...stored];
+
+// //   //   localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+// //   //   setData(next);
+
+// //   //   setName("");
+// //   //   setAmount("");
+// //   //   setImageUrl("");
+// //   // };
+
+// //   const handleClear = () => {
+// //     const confirmDelete = window.confirm(
+// //       "Та бүх хандивыг устгахдаа итгэлтэй байна уу?",
+// //     );
+
+// //     if (confirmDelete) {
+// //       localStorage.removeItem(STORAGE_KEY);
+// //       setData([]);
+// //     }
+// //   };
+
+// //   const handleDelete = (index: number) => {
+// //     const updated = data.filter((_, i) => i !== index);
+// //     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+// //     setData(updated);
+// //   };
+
+// //   const inputClass =
+// //     "w-full p-4 border border-border rounded-lg focus:border-blue-600 font-regular text-18 placeholder-shown:font-regular resize-none overflow-hidden outline-0 mb-6 bg-[#DDDDDD00]";
+
+// //   return (
+// //     <div className="overflow-scroll fixed inset-0 flex place-content-center items-center bg-black bg-opacity-50 z-50">
+// //       {/* LEFT */}
+// //       <div className="px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4 border">
+// //         <h2 className="text-42 text-center font-semibold mb-4">Хандив нэмэх</h2>
+
+// //         <form onSubmit={handleSubmit} className="justify-center w-96">
+// //           <input
+// //             type="text"
+// //             value={name}
+// //             onChange={(e) => setName(e.target.value)}
+// //             className={inputClass}
+// //             placeholder="Хандивлагч:"
+// //           />
+
+// //           <input
+// //             type="number"
+// //             value={amount}
+// //             onChange={(e) => setAmount(e.target.value)}
+// //             className={inputClass}
+// //             placeholder="Хандив дүн:"
+// //           />
+
+// //           <input
+// //             type="file"
+// //             accept="image/*"
+// //             onChange={handleImageUpload}
+// //             className="w-full mt-2"
+// //           />
+
+// //           {/* CROPPING UI */}
+// //           {image && (
+// //             <div className="mt-4">
+// //               <ReactCrop
+// //                 crop={crop}
+// //                 onChange={(c) => setCrop(c)}
+// //                 onComplete={(c) => {
+// //                   // ✅ onComplete returns Crop (maybe %)
+// //                   if (!imgRef.current) return;
+
+// //                   const pixel = convertToPixelCrop(
+// //                     c,
+// //                     imgRef.current.width,
+// //                     imgRef.current.height,
+// //                   );
+// //                   setCompletedCrop(pixel);
+// //                 }}
+// //                 // aspect={1}
+// //               >
+// //                 <img
+// //                   ref={imgRef}
+// //                   src={image}
+// //                   alt="To crop"
+// //                   className="w-full h-[320px] object-cover"
+// //                   // onLoad={(e) => {
+// //                   //   const img = e.currentTarget;
+// //                   //   const nextCrop = getCenteredSquareCrop(
+// //                   //     img.width,
+// //                   //     img.height,
+// //                   //   );
+// //                   //   setCrop(nextCrop);
+// //                   // }}
+// //                 />
+// //               </ReactCrop>
+
+// //               <button
+// //                 type="button"
+// //                 className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg"
+// //                 onClick={handleCropAndSave}
+// //               >
+// //                 Зураг хадгалах
+// //               </button>
+// //             </div>
+// //           )}
+
+// //           {/* PREVIEW CROPPED IMAGE */}
+// //           {imageUrl && !image && (
+// //             <img
+// //               src={imageUrl}
+// //               alt="Uploaded"
+// //               className="mt-4 rounded-lg w-full h-64 object-contain"
+// //             />
+// //           )}
+
+// //           {/* SUBMIT */}
+// //           {!image && (
+// //             <button
+// //               type="submit"
+// //               className="bg-blue-600 text-white px-6 py-3 rounded-lg w-full mt-4"
+// //             >
+// //               SAVE
+// //             </button>
+// //           )}
+// //         </form>
+// //       </div>
+
+// //       {/* RIGHT */}
+// //       <div className="border rounded-lg p-4 w-[600px] ml-10">
+// //         <h3 className="text-xl font-semibold mb-4">Нийт - {data.length}</h3>
+
+// //         <div className="overflow-auto h-96">
+// //           {data.length > 0 ? (
+// //             data.map((item, index) => (
+// //               <div
+// //                 key={index}
+// //                 className="flex justify-between items-center border-b p-2"
+// //               >
+// //                 <div className="flex items-center gap-3">
+// //                   {item.imageUrl && (
+// //                     <img
+// //                       src={item.imageUrl}
+// //                       alt="donation"
+// //                       className="w-[50px] h-[50px] rounded-lg object-cover"
+// //                     />
+// //                   )}
+
+// //                   <div>
+// //                     <p className="font-semibold">{item.name}</p>
+// //                     <p>{item.amount.toLocaleString()} ₮</p>
+// //                   </div>
+// //                 </div>
+
+// //                 <button
+// //                   onClick={() => handleDelete(index)}
+// //                   className="text-red-500 font-semibold hover:text-red-700"
+// //                 >
+// //                   Устгах
+// //                 </button>
+// //               </div>
+// //             ))
+// //           ) : (
+// //             <p className="text-center text-gray-500">Хандив байхгүй байна.</p>
+// //           )}
+// //         </div>
+
+// //         <div className="py-6 justify-end flex">
+// //           <Button onClick={handleClear}>Бүгдийн устгах</Button>
+// //         </div>
+// //       </div>
+// //     </div>
+// //   );
+// // }
+
+// // // -------------------------
+// // // Crop Image Utility (PixelCrop)
+// // // -------------------------
+// // const getCroppedImg = (
+// //   image: HTMLImageElement,
+// //   crop: PixelCrop,
+// // ): Promise<string> => {
+// //   return new Promise((resolve) => {
+// //     const canvas = document.createElement("canvas");
+// //     const ctx = canvas.getContext("2d");
+// //     if (!ctx) return;
+
+// //     const scaleX = image.naturalWidth / image.width;
+// //     const scaleY = image.naturalHeight / image.height;
+
+// //     // ✅ Ensure integer size
+// //     const pixelWidth = Math.floor(crop.width * scaleX);
+// //     const pixelHeight = Math.floor(crop.height * scaleY);
+
+// //     canvas.width = pixelWidth;
+// //     canvas.height = pixelHeight;
+
+// //     ctx.drawImage(
+// //       image,
+// //       crop.x * scaleX,
+// //       crop.y * scaleY,
+// //       crop.width * scaleX,
+// //       crop.height * scaleY,
+// //       0,
+// //       0,
+// //       pixelWidth,
+// //       pixelHeight,
+// //     );
+
+// //     // ✅ base64 size багасгах (0.7 чанартай)
+// //     resolve(canvas.toDataURL("image/jpeg", 0.7));
+// //   });
+// // };
