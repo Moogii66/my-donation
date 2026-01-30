@@ -1,82 +1,137 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
-// import { useRouter } from "next/navigation";
+import React, { useEffect, useRef, useState } from "react";
 import Button from "@/components/Button";
-import Image from "next/image";
-import ReactCrop, { Crop, PixelCrop } from "react-image-crop";
-// import "react-image-crop/dist/ReactCrop.css";
+import ReactCrop, {
+  Crop,
+  PixelCrop,
+  centerCrop,
+  makeAspectCrop,
+  convertToPixelCrop,
+} from "react-image-crop";
+import "react-image-crop/dist/ReactCrop.css";
 
 interface MainItemType {
   name: string;
   amount: number;
-  imageUrl: string;
+  imageUrl: string; // base64
 }
+
+const STORAGE_KEY = "data";
 
 export default function Donate() {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [image, setImage] = useState<string | null>(null);
-  const [imageUrl, setImageUrl] = useState("");
+  const [image, setImage] = useState<string | null>(null); // original base64 for cropping
+  const [imageUrl, setImageUrl] = useState<string>(""); // cropped base64
+  const [data, setData] = useState<MainItemType[]>([]);
 
-  const [data, setData] = useState<MainItemType[]>([]); // Store donations
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
-  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
-
+  // react-image-crop uses Crop (%/px)
   const [crop, setCrop] = useState<Crop>({
     unit: "%",
     width: 100,
     height: 100,
-    x: 0,
-    y: 0,
+    x: 10,
+    y: 10,
   });
-  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
+
+  // -------------------------
+  // Storage helpers
+  // -------------------------
+  const fetchData = () => {
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    setData(stored);
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  const fetchData = () => {
-    const storedData = JSON.parse(localStorage.getItem("data") || "[]");
-    setData(storedData);
-  };
-  //   const router = useRouter();
+  // -------------------------
+  // Crop helpers
+  // -------------------------
+  function getCenteredSquareCrop(width: number, height: number) {
+    // make a centered square crop in %
+    return centerCrop(
+      makeAspectCrop(
+        {
+          unit: "%",
+          width: 100,
+        },
+        1,
+        width,
+        height,
+      ),
+      width,
+      height,
+    );
+  }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImage(reader.result as string);
+
+      // reset old values
+      setImageUrl("");
+      setCompletedCrop(null);
+    };
+
+    reader.readAsDataURL(file);
   };
 
   const handleCropAndSave = async () => {
-    if (!imgRef.current || !completedCrop) return;
+    if (!imgRef.current) return alert("Зураг уншигдсангүй байна!");
+    if (!completedCrop || completedCrop.width <= 0 || completedCrop.height <= 0)
+      return alert("Crop сонгогдоогүй байна! (зураг дээр crop хөдөлгөнө үү)");
 
     const croppedImage = await getCroppedImg(imgRef.current, completedCrop);
+
     setImageUrl(croppedImage);
-    setImage(null);
+    setImage(null); // close crop ui
+    setCompletedCrop(null);
   };
-  // const handleCropAndSave = async () => {
-  //   if (imgRef.current && crop.width && crop.height) {
-  //     const croppedImage = await getCroppedImg(imgRef.current, crop);
-  //     setImageUrl(croppedImage);
-  //     setImage(null);
-  //   }
-  // };
 
-  const handleSubmit = () => {
-    if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
+  // -------------------------
+  // Submit donation
+  // -------------------------
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
 
-    const newItem = { name, amount: parseFloat(amount), imageUrl };
-    const data = JSON.parse(localStorage.getItem("data") || "[]");
-    data.push(newItem);
-    localStorage.setItem("data", JSON.stringify(data));
+    if (!name.trim() || !amount.trim()) {
+      return alert("Бүх талбарыг бөглөнө үү!");
+    }
 
-    // router.push("/"); // Redirect to home page
+    if (!imageUrl) {
+      return alert("Зургаа хадгалаад дараа нь хадгална уу!");
+    }
+
+    const newItem: MainItemType = {
+      name: name.trim(),
+      amount: Number(amount),
+      imageUrl,
+    };
+
+    const stored: MainItemType[] = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || "[]",
+    );
+
+    const next = [newItem, ...stored];
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setData(next);
+
+    // clear form
+    setName("");
+    setAmount("");
+    setImageUrl("");
   };
 
   const handleClear = () => {
@@ -85,107 +140,118 @@ export default function Donate() {
     );
 
     if (confirmDelete) {
-      localStorage.removeItem("data");
-      setData([]); // Clear state immediately
+      localStorage.removeItem(STORAGE_KEY);
+      setData([]);
     }
   };
 
   const handleDelete = (index: number) => {
-    const updatedData = data.filter((_, i) => i !== index);
-    localStorage.setItem("data", JSON.stringify(updatedData));
-    setData(updatedData);
+    const updated = data.filter((_, i) => i !== index);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setData(updated);
   };
 
   const inputClass =
-    "w-full p-4 border border-border rounded-lg focus:border-blue-600  font-regular text-18 placeholder-shown:font-regular resize-none overflow-hidden outline-0 mb-6 bg-[#DDDDDD00]";
+    "w-full p-4 border border-border rounded-lg focus:border-blue-600 font-regular text-18 placeholder-shown:font-regular resize-none overflow-hidden outline-0 mb-6 bg-[#DDDDDD00]";
 
   return (
     <div className="overflow-scroll fixed inset-0 flex place-content-center items-center bg-black bg-opacity-50 z-50">
-      <div className=" px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4 border">
-        <>
-          <h2 className=" text-42 text-center font-semibold mb-4">
-            Хандив нэмэх
-          </h2>
+      {/* LEFT */}
+      <div className="px-10 pt-8 pb-16 rounded-2xl shadow-lg mx-4 border">
+        <h2 className="text-42 text-center font-semibold mb-4">Хандив нэмэх</h2>
 
-          <form
-            // onSubmit={(e) => e.preventDefault()}
-            onSubmit={handleSubmit}
-            className="justify-center w-96"
-          >
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputClass}
-              placeholder="Хандивлагч:"
+        <form onSubmit={handleSubmit} className="justify-center w-96">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className={inputClass}
+            placeholder="Хандивлагч:"
+          />
+
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className={inputClass}
+            placeholder="Хандив дүн:"
+          />
+
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="w-full mt-2"
+          />
+
+          {/* CROPPING UI */}
+          {image && (
+            <div className="mt-4">
+              <ReactCrop
+                crop={crop}
+                onChange={(c) => setCrop(c)}
+                onComplete={(c) => {
+                  // ✅ onComplete returns Crop (maybe %)
+                  if (!imgRef.current) return;
+
+                  const pixel = convertToPixelCrop(
+                    c,
+                    imgRef.current.width,
+                    imgRef.current.height,
+                  );
+                  setCompletedCrop(pixel);
+                }}
+                // aspect={1}
+              >
+                <img
+                  ref={imgRef}
+                  src={image}
+                  alt="To crop"
+                  className="w-full h-[320px] object-cover"
+                  // onLoad={(e) => {
+                  //   const img = e.currentTarget;
+                  //   const nextCrop = getCenteredSquareCrop(
+                  //     img.width,
+                  //     img.height,
+                  //   );
+                  //   setCrop(nextCrop);
+                  // }}
+                />
+              </ReactCrop>
+
+              <button
+                type="button"
+                className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg"
+                onClick={handleCropAndSave}
+              >
+                Зураг хадгалах
+              </button>
+            </div>
+          )}
+
+          {/* PREVIEW CROPPED IMAGE */}
+          {imageUrl && !image && (
+            <img
+              src={imageUrl}
+              alt="Uploaded"
+              className="mt-4 rounded-lg w-full h-64 object-contain"
             />
+          )}
 
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className={inputClass}
-              placeholder="Хандив дүн:"
-            />
-
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="w-full mt-4"
-            />
-
-            {image && (
-              <div className="mt-4">
-                <ReactCrop
-                  crop={crop}
-                  onChange={(c) => setCrop(c)}
-                  aspect={1} // Keep a square aspect ratio
-                  locked={true} // Allow moving and resizing crop area
-                  onComplete={(c) => setCompletedCrop(c)}
-                >
-                  <Image
-                    ref={imgRef}
-                    src={image}
-                    alt="To crop"
-                    className="w-full"
-                    width={100}
-                    height={100}
-                  />
-                </ReactCrop>
-                <button
-                  type="button"
-                  className="mt-2 p-2 bg-blue-500 text-white rounded-lg"
-                  onClick={handleCropAndSave}
-                >
-                  Зураг хадгалах
-                </button>
-              </div>
-            )}
-
-            {imageUrl && !image && (
-              <Image
-                src={imageUrl}
-                alt="Uploaded"
-                width={100}
-                height={100}
-                className="mt-4 rounded-lg w-full h-64"
-                style={{ objectFit: "contain" }}
-                priority
-              />
-            )}
-            {!image && (
-              <div className="flex place-content-center mt-4">
-                {/* <Button type="button" onClick={handleCropAndClose}> */}
-                <Button type="submit">Хадгалах</Button>
-              </div>
-            )}
-          </form>
-        </>
+          {/* SUBMIT */}
+          {!image && (
+            <div className="flex place-content-center mt-4">
+              <Button type="submit">Хадгалах</Button>
+            </div>
+          )}
+        </form>
       </div>
-      <div className=" border rounded-lg p-4 w-[600px] ml-10">
+
+      {/* RIGHT */}
+      <div className="border rounded-lg p-4 w-[600px] ml-10">
         <h3 className="text-xl font-semibold mb-4">Нийт - {data.length}</h3>
-        <div className="overflow-auto h-96 ">
+
+        <div className="overflow-auto h-96">
           {data.length > 0 ? (
             data.map((item, index) => (
               <div
@@ -194,19 +260,19 @@ export default function Donate() {
               >
                 <div className="flex items-center gap-3">
                   {item.imageUrl && (
-                    <Image
+                    <img
                       src={item.imageUrl}
                       alt="donation"
-                      width={50}
-                      height={50}
-                      className="rounded-lg"
+                      className="w-[50px] h-[50px] rounded-lg object-cover"
                     />
                   )}
+
                   <div>
                     <p className="font-semibold">{item.name}</p>
                     <p>{item.amount.toLocaleString()} ₮</p>
                   </div>
                 </div>
+
                 <button
                   onClick={() => handleDelete(index)}
                   className="text-red-500 font-semibold hover:text-red-700"
@@ -219,74 +285,18 @@ export default function Donate() {
             <p className="text-center text-gray-500">Хандив байхгүй байна.</p>
           )}
         </div>
+
         <div className="py-6 justify-end flex">
           <Button onClick={handleClear}>Бүгдийн устгах</Button>
         </div>
       </div>
     </div>
-    // <div className="h-screen flex flex-col items-center justify-center">
-    //   <h2 className="text-2xl font-bold mb-4">Хандив өгөх</h2>
-
-    //   <input
-    //     type="text"
-    //     placeholder="Нэр"
-    //     value={name}
-    //     onChange={(e) => setName(e.target.value)}
-    //     className="border p-2 mb-2 w-80"
-    //   />
-    //   <input
-    //     type="number"
-    //     placeholder="Хандив дүн"
-    //     value={amount}
-    //     onChange={(e) => setAmount(e.target.value)}
-    //     className="border p-2 mb-2 w-80"
-    //   />
-    //   <input
-    //     type="file"
-    //     accept="image/*"
-    //     onChange={handleImageUpload}
-    //     className="mb-2"
-    //   />
-
-    //   {image && (
-    //     <div className="mt-2">
-    //       <ReactCrop crop={crop} onChange={(c) => setCrop(c)} aspect={1}>
-    //         <Image
-    //           ref={imgRef}
-    //           src={image}
-    //           alt="Crop"
-    //           width={100}
-    //           height={100}
-    //         />
-    //       </ReactCrop>
-    //       <button
-    //         className="mt-2 p-2 bg-blue-500 text-white rounded"
-    //         onClick={handleCropAndSave}
-    //       >
-    //         Crop & Save
-    //       </button>
-    //     </div>
-    //   )}
-
-    //   {imageUrl && !image && (
-    //     <Image
-    //       src={imageUrl}
-    //       alt="Cropped"
-    //       width={100}
-    //       height={100}
-    //       className="mt-2"
-    //     />
-    //   )}
-
-    //   <div className="flex gap-4 mt-4">
-    //     <Button onClick={handleSubmit}>Хадгалах</Button>
-    //     <Button onClick={() => router.push("/")}>Буцах</Button>
-    //   </div>
-    // </div>
   );
 }
 
-// Crop Image Utility
+// -------------------------
+// Crop Image Utility (PixelCrop)
+// -------------------------
 const getCroppedImg = (
   image: HTMLImageElement,
   crop: PixelCrop,
@@ -294,17 +304,17 @@ const getCroppedImg = (
   return new Promise((resolve) => {
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      console.error("Canvas context is not available.");
-      return;
-    }
+    if (!ctx) return;
 
     const scaleX = image.naturalWidth / image.width;
     const scaleY = image.naturalHeight / image.height;
 
-    canvas.width = crop.width * (scaleX || 1);
-    canvas.height = crop.height * (scaleY || 1);
+    // ✅ Ensure integer size
+    const pixelWidth = Math.floor(crop.width * scaleX);
+    const pixelHeight = Math.floor(crop.height * scaleY);
+
+    canvas.width = pixelWidth;
+    canvas.height = pixelHeight;
 
     ctx.drawImage(
       image,
@@ -314,79 +324,11 @@ const getCroppedImg = (
       crop.height * scaleY,
       0,
       0,
-      canvas.width,
-      canvas.height,
+      pixelWidth,
+      pixelHeight,
     );
 
-    // Convert to Base64 instead of using Blob
-    const base64Image = canvas.toDataURL("image/jpeg");
-    resolve(base64Image);
+    // ✅ base64 size багасгах (0.7 чанартай)
+    resolve(canvas.toDataURL("image/jpeg", 0.7));
   });
 };
-// const getCroppedImg = (
-//   image: HTMLImageElement,
-//   crop: Crop
-// ): Promise<string> => {
-//   return new Promise((resolve) => {
-//     const canvas = document.createElement("canvas");
-//     const scaleX = image.naturalWidth / image.width;
-//     const scaleY = image.naturalHeight / image.height;
-
-//     canvas.width = crop.width * scaleX;
-//     canvas.height = crop.height * scaleY;
-//     const ctx = canvas.getContext("2d");
-
-//     if (ctx) {
-//       ctx.drawImage(
-//         image,
-//         crop.x * scaleX,
-//         crop.y * scaleY,
-//         crop.width * scaleX,
-//         crop.height * scaleY,
-//         0,
-//         0,
-//         canvas.width,
-//         canvas.height
-//       );
-
-//       // Convert to base64 instead of using Blob
-//       const base64Image = canvas.toDataURL("image/jpeg");
-//       resolve(base64Image);
-//     }
-//   });
-// };
-
-// const getCroppedImg = (
-//   image: HTMLImageElement,
-//   crop: Crop
-// ): Promise<string> => {
-//   return new Promise((resolve) => {
-//     const canvas = document.createElement("canvas");
-//     const scaleX = image.naturalWidth / image.width;
-//     const scaleY = image.naturalHeight / image.height;
-//     canvas.width = crop.width * scaleX;
-//     canvas.height = crop.height * scaleY;
-//     const ctx = canvas.getContext("2d");
-
-//     if (ctx) {
-//       ctx.drawImage(
-//         image,
-//         crop.x * scaleX,
-//         crop.y * scaleY,
-//         crop.width * scaleX,
-//         crop.height * scaleY,
-//         0,
-//         0,
-//         canvas.width,
-//         canvas.height
-//       );
-
-//       canvas.toBlob((blob) => {
-//         if (blob) {
-//           const fileUrl = URL.createObjectURL(blob);
-//           resolve(fileUrl);
-//         }
-//       }, "image/jpeg");
-//     }
-//   });
-// };
