@@ -103,13 +103,41 @@ export default function Donate() {
   // Submit donation
   // -------------------------
   const handleSubmit = () => {
-    if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
+    // e?.preventDefault?.();
 
-    const newItem = { name, amount: parseFloat(amount), imageUrl };
-    const data = JSON.parse(localStorage.getItem("GANG_DATA") || "[]");
-    data.push(newItem);
-    localStorage.setItem("GANG_DATA", JSON.stringify(data));
+    if (!name.trim() || !amount.trim()) {
+      return alert("Бүх талбарыг бөглөнө үү!");
+    }
+
+    const newItem: MainItemType = {
+      name: name.trim(),
+      amount: Number(amount),
+      imageUrl: imageUrl || "", // ✅ зураггүй бол хоосон
+    };
+
+    const stored: MainItemType[] = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || "[]",
+    );
+
+    const next = [...stored, newItem];
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    setData(next); // ✅ заавал нэм
+
+    // ✅ clear
+    setName("");
+    setAmount("");
+    setImageUrl("");
   };
+  // const handleSubmit = () => {
+  //   if (!name || !amount) return alert("Бүх талбарыг бөглөнө үү!");
+
+  //   const newItem = { name, amount: parseFloat(amount), imageUrl };
+  //   const data = JSON.parse(localStorage.getItem("GANG_DATA") || "[]");
+  //   data.push(newItem);
+  //   localStorage.setItem("GANG_DATA", JSON.stringify(data));
+  // };
+
   // router.push("/"); // Redirect to home page
   // const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
   //   e?.preventDefault?.();
